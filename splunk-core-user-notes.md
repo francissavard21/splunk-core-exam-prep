@@ -1,55 +1,65 @@
-# Splunk Core Certified User - Study Notes
+# Splunk Core Certified User – Study Notes
 
-These are my personal notes while preparing for the Splunk Core Certified User exam.
-
----
-
-## 🔍 1. Search Modes
-- **Fast** – Prioritizes speed; skips field discovery
-- **Smart** – Adjusts based on whether the search is transforming or not
-- **Verbose** – Includes all fields and raw event data
+These are my personal notes in preparation for the **Splunk Core Certified User exam. Splunk is a platform used for real-time threat detection, log analysis, and performance monitoring across IT environments.
 
 ---
 
-## 🧠 2. Search Commands
-- `stats count by host` – Counts events by host
-- `table user, action` – Displays results in table format
-- `fields - _raw` – Excludes the `_raw` field from results
-- `rename status_code as code` – Renames a field
+## 🔍 What Is Splunk?
+
+- Centralized platform to **collect, process, and analyze data** from systems, networks, and applications
+- Primarily used to **detect threats**, **monitor events**, and **investigate incidents**
+- Supports **real-time threat detection** for things like malware and unauthorized access
+- Can **identify bottlenecks** in high-traffic systems to help improve performance
+- Known to be **resource-intensive**, especially in large deployments
+- Integrates with **AWS**, **Azure**, and **Google Cloud**
 
 ---
 
-## 🧱 3. Fields
-- **Default selected fields**: `host`, `source`, `sourcetype`
-- **Interesting fields**: Appear in ≥ 20% of events
-- **Field discovery**: Extracts fields at search time
+## 🧠 Key Concepts
+
+- **SPL** (Search Processing Language):  
+  Splunk’s language used to perform searches and manipulate results
+
+- **Search Operators**:
+  - `*` – Wildcard; matches any word containing the base
+  - `" "` – Quotation marks used for **exact phrase** matches
 
 ---
 
-## 🔔 4. Knowledge Objects
-- **Reports** – Saved searches that can be scheduled
-- **Alerts** – Triggered by search results meeting a condition
-- **Dashboards** – Visual displays of data using panels
-- **Event types** – Saved sets of search criteria
+## 📦 Data Flow & Components
+
+- **Data Path**:  
+  `Host → Indexer → Index (Buckets) → Search`
+
+- **Indexer**:  
+  Stores incoming data into **indexes**, broken down into **buckets**
+
+- **Indexer Clustering**:  
+  Multiple indexers can report to an **Indexer Manager** (cluster master)
+
+- **Search Head**:  
+  Sends search queries to one or more indexers and compiles results
 
 ---
 
-## 📅 5. Time Modifiers
-- `earliest=-24h@h latest=now`
-- `earliest=-7d@d latest=@d`
-- Relative time options for filtering
+## ✅ What I’m Focusing On
+
+- Understanding how data flows through Splunk architecture
+- Writing effective SPL queries using wildcards and phrase matching
+- Learning how Splunk supports real-time detection and cloud integrations
+- Preparing for exam topics like field extraction, knowledge objects, and dashboards
 
 ---
 
-## 🧪 6. Exam Reminders
-- Events returned by default in **reverse chronological order**
-- `search` command is used to **further filter** results
-- Fields with `=` at search time: **left = field name, right = value**
-- To **exclude fields**: use `fields - fieldname`
+## 📌 Notes
+
+- Certification comes with a **digital badge** upon completion
+- Know the difference between **search heads**, **indexers**, and **forwarders**
+- Get comfortable identifying and writing basic SPL queries
 
 ---
 
-## 📌 Resources
-- Splunk Docs: https://docs.splunk.com/
-- TryHackMe Splunk Room
-- Free Splunk Fundamentals Course
+## 📚 Resources
+- [Splunk Docs](https://docs.splunk.com/)
+- [Splunk Fundamentals Training (Free)](https://www.splunk.com/en_us/training/free-courses/splunk-fundamentals-1.html)
+- [TryHackMe - Splunk Room](https://tryhackme.com/room/splunk)
