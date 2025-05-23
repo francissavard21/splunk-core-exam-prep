@@ -20,7 +20,7 @@ This repository contains my personal study notes as I prepare for the **Splunk C
 ---
 
 ## 📂 Notes in This Repo
--Splunk-core-user-notes.md - Various notes through the Udemy prep course
+-splunk-core-user-notes.md- Various notes through the Udemy prep course
 - *(More coming soon as I study)*
 
 ---
