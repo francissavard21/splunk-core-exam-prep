@@ -20,10 +20,7 @@ This repository contains my personal study notes as I prepare for the **Splunk C
 ---
 
 ## 📂 Notes in This Repo
-
-- `splunk-search-notes.md` – Search syntax, modes, and common commands  
-- `fields-and-extractions.md` – Notes on field discovery and extraction tools  
-- `dashboard-basics.md` – How to build and customize dashboards  
+-Splunk-core-user-notes.md - Various notes through the Udemy prep course
 - *(More coming soon as I study)*
 
 ---
