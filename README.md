@@ -19,8 +19,8 @@ This repository contains my personal study notes as I prepare for the **Splunk C
 
 ---
 
-## 📂 Notes in This Repo
--splunk-core-user-notes.md- Various notes through the Udemy prep course
+## 📂 Notes in Thi[s Repo
+[-splunk-3](https://github.com/francissavard21/splunk-core-exam-prep/blob/fcd493defee095ba58fa20afe215aac380ccf7ec/splunk-core-user-notes.md)- Various notes through the Udemy prep course](https://github.com/francissavard21/splunk-core-exam-prep/blob/fcd493defee095ba58fa20afe215aac380ccf7ec/splunk-core-user-notes.md)
 - *(More coming soon as I study)*
 
 ---
