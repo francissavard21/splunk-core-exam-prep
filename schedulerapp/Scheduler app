@@ -1,0 +1,1299 @@
+<!-- Technician Schedule: live day grid, click a cell to assign AM/PM job type -->
+<style>
+  #ts-root {
+    --ts-bg: #EEF1F4;
+    --ts-card: #FFFFFF;
+    --ts-ink: #20262B;
+    --ts-slate: #55636F;
+    --ts-line: #D8DEE3;
+    --ts-grid-line: #7C868E;
+    --ts-amber: #E2A63C;
+    --ts-amber-ink: #5A3E0B;
+    --ts-weekend: #F3E6E6;
+    --ts-red: #B65C4D;
+    --ts-empty: #F5F6F7;
+
+    font-family: 'Work Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--ts-bg);
+    color: var(--ts-ink);
+    min-height: 100%;
+    padding-bottom: 40px;
+  }
+  #ts-root * { box-sizing: border-box; }
+  #ts-root h1, #ts-root h2, #ts-root button, #ts-root .ts-name {
+    font-family: 'Archivo', 'Work Sans', sans-serif;
+  }
+
+  .ts-topbar {
+    background: var(--ts-ink);
+    color: #fff;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .ts-title { font-weight: 700; font-size: 19px; margin: 0; }
+  .ts-subtitle { color: #A9B4BD; font-size: 13px; margin: 2px 0 0; }
+  .ts-topbar-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .ts-btn { border: none; border-radius: 7px; padding: 8px 13px; font-weight: 600; font-size: 13px; cursor: pointer; }
+  .ts-btn-amber { background: var(--ts-amber); color: var(--ts-amber-ink); }
+  .ts-btn-ghost { background: rgba(255,255,255,0.12); color: #fff; }
+  .ts-btn-ghost:hover { background: rgba(255,255,255,0.2); }
+
+  .ts-nav {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 20px; background: var(--ts-card);
+    border-bottom: 1px solid var(--ts-line); flex-wrap: wrap;
+  }
+  .ts-nav-arrow {
+    border: 1px solid var(--ts-line); background: #fff; border-radius: 7px;
+    width: 32px; height: 32px; font-size: 15px; cursor: pointer; color: var(--ts-ink);
+  }
+  .ts-nav-arrow:hover { background: var(--ts-bg); }
+  .ts-nav-range { font-weight: 600; font-size: 14px; min-width: 190px; }
+  .ts-nav-today {
+    border: 1px solid var(--ts-line); background: #fff; border-radius: 7px;
+    padding: 7px 12px; font-size: 13px; cursor: pointer; color: var(--ts-ink); font-weight: 600;
+  }
+  .ts-nav-daycount { margin-left: auto; font-size: 13px; color: var(--ts-slate); display: flex; align-items: center; gap: 6px; }
+  .ts-nav-daycount select { border: 1px solid var(--ts-line); border-radius: 6px; padding: 5px 6px; font-size: 13px; font-family: inherit; }
+  .ts-legend { display: flex; gap: 8px 18px; align-items: center; padding: 14px 20px; background: var(--ts-card); border-top: 1px solid var(--ts-grid-line); flex-wrap: wrap; font-size: 14px; color: var(--ts-slate); row-gap: 10px; }
+  .ts-legend-group-label { font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ts-slate); margin-right: -6px; }
+  .ts-legend-chip { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .ts-legend-swatch { width: 16px; height: 16px; border-radius: 5px; display: inline-block; border: 1px solid rgba(0,0,0,0.15); }
+  .ts-legend-swatch-tentative {
+    background: var(--ts-bg);
+    background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.35) 0, rgba(0,0,0,0.35) 1.5px, transparent 1.5px, transparent 5px);
+  }
+
+  .ts-board-scroll { overflow-x: auto; background: var(--ts-card); }
+  .ts-board { position: relative; width: fit-content; min-width: 100%; }
+
+  .ts-header-row { display: flex; position: sticky; top: 0; z-index: 3; }
+  .ts-corner {
+    position: sticky; left: 0; z-index: 4; background: var(--ts-card);
+    border-bottom: 2px solid var(--ts-ink); border-right: 1px solid var(--ts-grid-line);
+    display: flex; align-items: center; padding: 0 10px; font-size: 14px; color: var(--ts-slate);
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .ts-daycell-header {
+    border-bottom: 2px solid var(--ts-ink); border-right: 1px solid var(--ts-grid-line);
+    text-align: center; padding: 3px 2px; background: var(--ts-card); flex-shrink: 0;
+  }
+  .ts-daycell-header.ts-weekend { background: var(--ts-weekend); }
+  .ts-dow { font-size: 11.5px; color: var(--ts-slate); text-transform: uppercase; letter-spacing: 0.02em; }
+  .ts-dnum { font-size: 14.5px; font-weight: 700; }
+  .ts-month-mark { font-size: 9.5px; color: var(--ts-amber-ink); font-weight: 700; }
+
+  .ts-tech-row { display: flex; border-bottom: 1px solid var(--ts-grid-line); }
+  .ts-tech-row.ts-row-dragging { opacity: 0.45; }
+  .ts-tech-row.ts-row-drop-before { box-shadow: inset 0 3px 0 0 var(--ts-amber); }
+  .ts-tech-row.ts-row-drop-after { box-shadow: inset 0 -3px 0 0 var(--ts-amber); }
+  #ts-board-container.ts-shift-active .ts-tech-name-cell { cursor: grab; }
+  .ts-tech-row.ts-row-dragging .ts-tech-name-cell { cursor: grabbing; }
+  #ts-root.ts-mode-user .ts-add-row { display: none; }
+  #ts-root.ts-mode-user #ts-manage-types { display: none; }
+  #ts-root.ts-mode-user .ts-slot { cursor: default; }
+  #ts-root.ts-mode-user .ts-slot:hover { filter: none; }
+  .ts-tech-name-cell {
+    position: sticky; left: 0; z-index: 2; background: #FBF3E2;
+    border-right: 1px solid var(--ts-grid-line); display: flex; align-items: center;
+    padding: 0 10px; flex-shrink: 0;
+  }
+  .ts-name { font-weight: 600; font-size: 15.5px; cursor: pointer; }
+  .ts-name:hover { text-decoration: underline; text-decoration-color: var(--ts-slate); }
+
+  .ts-add-row { display: flex; border-bottom: 1px solid var(--ts-grid-line); background: #fff; }
+  .ts-add-row-cell {
+    position: sticky; left: 0; z-index: 2; background: #fff;
+    border-right: 1px solid var(--ts-grid-line); display: flex; align-items: center; gap: 6px;
+    padding: 8px 10px; flex-shrink: 0;
+  }
+  .ts-add-row-input {
+    border: 1px dashed var(--ts-line); border-radius: 7px; padding: 7px 9px;
+    font-size: 13px; font-family: inherit; width: 100%; color: var(--ts-ink);
+  }
+  .ts-add-row-input:focus { outline: none; border-color: var(--ts-ink); border-style: solid; }
+  .ts-add-row-btn {
+    border: none; background: var(--ts-amber); color: var(--ts-amber-ink);
+    border-radius: 7px; padding: 7px 10px; font-size: 13px; font-weight: 700; cursor: pointer; flex-shrink: 0;
+  }
+  .ts-add-row-filler { background: repeating-linear-gradient(90deg, transparent, transparent 78px, var(--ts-grid-line) 78px, var(--ts-grid-line) 79px); }
+
+  .ts-daycell {
+    border-right: 1px solid var(--ts-grid-line);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .ts-daycell.ts-weekend { background: var(--ts-weekend); }
+  .ts-slot {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    padding: 1px 4px;
+    cursor: pointer;
+    border: 1px solid rgba(0,0,0,0.32);
+    background: var(--ts-empty);
+    color: var(--ts-slate);
+    text-align: center;
+    overflow: hidden;
+  }
+  .ts-slot:hover { filter: brightness(0.96); }
+  .ts-slot.ts-slot-empty:hover { background: #E9ECEE; }
+  .ts-slot-tentative {
+    background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.5) 0, rgba(255,255,255,0.5) 3px, transparent 3px, transparent 8px);
+    border-style: dashed;
+    border-width: 2px;
+  }
+  .ts-slot-empty-label { font-size: 12px; font-weight: 700; letter-spacing: 0.02em; }
+  .ts-slot-name { font-size: 12px; font-weight: 700; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .ts-slot-note { font-size: 9.5px; font-weight: 400; opacity: 0.9; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+  .ts-empty-techs { padding: 60px 20px; text-align: center; color: var(--ts-slate); }
+
+  .ts-modal-backdrop {
+    position: fixed; inset: 0; background: rgba(20,24,28,0.72);
+    display: flex; align-items: flex-end; justify-content: center; z-index: 20;
+  }
+  @media (min-width: 640px) { .ts-modal-backdrop { align-items: center; } }
+  .ts-modal {
+    background: #FFFFFF; border-radius: 14px 14px 0 0; padding: 20px;
+    width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 12px 44px rgba(0,0,0,0.35);
+  }
+  @media (min-width: 640px) { .ts-modal { border-radius: 14px; } }
+  .ts-modal h2 { font-size: 17px; margin: 0 0 2px; color: var(--ts-ink); }
+  .ts-modal-sub { font-size: 13px; color: var(--ts-slate); margin: 0 0 16px; }
+  .ts-jobtype-grid { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  .ts-jobtype-option {
+    display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 9px;
+    border: 1.5px solid #B7C0C7; cursor: pointer; font-size: 14px; font-weight: 600;
+    background: #FFFFFF; color: var(--ts-ink); -webkit-appearance: none; appearance: none;
+  }
+  .ts-jobtype-option:hover { border-color: var(--ts-ink); }
+  .ts-jobtype-option.ts-jobtype-selected { border-color: var(--ts-ink); border-width: 2px; background: var(--ts-bg); }
+  .ts-jobtype-swatch { width: 20px; height: 20px; border-radius: 6px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.15); }
+  .ts-clear-option { color: var(--ts-red); border-style: dashed; }
+  .ts-period-toggle { display: flex; gap: 6px; }
+  .ts-period-btn {
+    flex: 1; padding: 9px 6px; border-radius: 7px; border: 1.5px solid #B7C0C7;
+    background: #FFFFFF; font-size: 13px; font-weight: 700; cursor: pointer; color: var(--ts-ink);
+    font-family: inherit; -webkit-appearance: none; appearance: none;
+  }
+  .ts-period-btn.ts-period-selected { background: var(--ts-ink); color: #fff; border-color: var(--ts-ink); }
+  .ts-period-toggle.ts-period-locked .ts-period-btn {
+    opacity: 1; cursor: not-allowed; pointer-events: none;
+    background: #E4E8EB; color: var(--ts-slate); border-color: #C7CCD1;
+  }
+  .ts-period-toggle.ts-period-locked .ts-period-btn.ts-period-selected {
+    background: var(--ts-ink); color: #fff; border-color: var(--ts-ink);
+  }
+
+  .ts-field { margin-bottom: 13px; }
+  .ts-field label { display: block; font-size: 13px; color: var(--ts-slate); margin-bottom: 5px; }
+  .ts-field input, .ts-field select, .ts-field textarea { width: 100%; padding: 9px 11px; border: 1.5px solid #B7C0C7; border-radius: 8px; font-size: 14px; font-family: inherit; color: var(--ts-ink); background: #FFFFFF; }
+  .ts-field input:disabled, .ts-field textarea:disabled { background: #EEF0F1; color: var(--ts-slate); cursor: not-allowed; }
+  .ts-field textarea { resize: vertical; min-height: 60px; }
+  .ts-field-row { display: flex; gap: 10px; align-items: flex-end; }
+  .ts-field-row .ts-field { flex: 1; margin-bottom: 0; }
+  .ts-modal-actions { display: flex; gap: 10px; margin-top: 14px; }
+  .ts-modal-actions button { flex: 1; padding: 10px; border-radius: 8px; border: 1.5px solid transparent; font-weight: 700; font-size: 14px; cursor: pointer; -webkit-appearance: none; appearance: none; }
+  .ts-cancel-btn { background: #E4E8EB; color: var(--ts-ink); border-color: #B7C0C7; }
+  .ts-save-btn { background: var(--ts-amber); color: var(--ts-amber-ink); border-color: var(--ts-amber); }
+  .ts-del-modal-btn { background: #F6E6E2; color: var(--ts-red); border-color: #E0B6AC; }
+  .ts-error { color: var(--ts-red); font-size: 13px; margin-top: 8px; }
+  .ts-tentative-check {
+    display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ts-ink);
+    margin: -6px 0 14px; cursor: pointer; user-select: none;
+  }
+  .ts-tentative-check input { width: 16px; height: 16px; cursor: pointer; }
+  .ts-loading { text-align: center; color: var(--ts-slate); padding: 60px 20px; }
+  .ts-listitem { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--ts-line); font-size: 14px; }
+  .ts-listitem-left { display: flex; align-items: center; gap: 9px; }
+  .ts-del-link { border: none; background: transparent; color: var(--ts-slate); font-size: 12px; cursor: pointer; }
+  .ts-del-link:hover { color: var(--ts-red); }
+  .ts-color-swatches { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 4px; }
+  .ts-color-dot { width: 24px; height: 24px; border-radius: 6px; cursor: pointer; border: 2px solid transparent; }
+  .ts-color-dot.ts-color-selected { border-color: var(--ts-ink); }
+
+  #ts-lock-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ts-ink);
+    padding: 20px;
+  }
+  .ts-lock-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 28px 24px;
+    width: 100%;
+    max-width: 340px;
+    text-align: center;
+    box-shadow: 0 12px 44px rgba(0,0,0,0.35);
+  }
+  .ts-lock-title { font-family: 'Archivo', sans-serif; font-weight: 700; font-size: 19px; margin: 0 0 4px; color: var(--ts-ink); }
+  .ts-lock-sub { font-size: 13px; color: var(--ts-slate); margin: 0 0 18px; }
+  #ts-lock-input {
+    width: 100%; padding: 11px 12px; border: 1.5px solid #B7C0C7; border-radius: 8px;
+    font-size: 15px; text-align: center; letter-spacing: 0.05em;
+  }
+</style>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=Work+Sans:wght@400;500;600&display=swap">
+
+<div id="ts-root">
+  <div id="ts-lock-screen" style="display:none;">
+    <div class="ts-lock-card">
+      <p class="ts-lock-title">Technician Schedule</p>
+      <p class="ts-lock-sub">This schedule is private. Enter the access code to continue.</p>
+      <input type="password" id="ts-lock-input" placeholder="Access code" autocomplete="off">
+      <button class="ts-btn ts-btn-amber" id="ts-lock-submit" style="width:100%;margin-top:10px;">Unlock</button>
+      <div class="ts-error" id="ts-lock-error" style="display:none;">Incorrect code.</div>
+    </div>
+  </div>
+
+  <div id="ts-app-content">
+    <div class="ts-topbar">
+      <div>
+        <p class="ts-title">Technician Schedule</p>
+        <p class="ts-subtitle">Tap a day to assign work</p>
+      </div>
+      <div class="ts-topbar-actions">
+        <button class="ts-btn ts-btn-ghost" id="ts-manage-types">Job types</button>
+        <button class="ts-btn ts-btn-ghost" id="ts-access-btn">Admin</button>
+      </div>
+    </div>
+
+    <div class="ts-nav">
+      <button class="ts-nav-arrow" id="ts-prev">‹</button>
+      <button class="ts-nav-arrow" id="ts-next">›</button>
+      <div class="ts-nav-range" id="ts-range-label">—</div>
+      <button class="ts-nav-today" id="ts-today">Today</button>
+      <div class="ts-nav-daycount">
+        Show
+        <select id="ts-daycount-select">
+          <option value="7">7 days</option>
+          <option value="14" selected>14 days</option>
+          <option value="21">21 days</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="ts-board-scroll">
+      <div id="ts-board-container"><div class="ts-loading">Loading schedule…</div></div>
+    </div>
+
+    <div class="ts-legend" id="ts-legend"></div>
+  </div>
+</div>
+
+<script>
+// --- Local storage shim: replaces Claude's window.storage with the browser's localStorage,
+// so this file works standalone on your own PC. Single-user only (not shared across devices). ---
+window.storage = {
+  async get(key, shared) {
+    const raw = localStorage.getItem('ts-local:' + key);
+    if (raw === null) throw new Error('Key not found: ' + key);
+    return { key, value: raw, shared: !!shared };
+  },
+  async set(key, value, shared) {
+    localStorage.setItem('ts-local:' + key, value);
+    return { key, value, shared: !!shared };
+  },
+  async delete(key, shared) {
+    localStorage.removeItem('ts-local:' + key);
+    return { key, deleted: true, shared: !!shared };
+  },
+  async list(prefix, shared) {
+    const keys = [];
+    const p = 'ts-local:' + (prefix || '');
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.indexOf(p) === 0) keys.push(k.slice('ts-local:'.length));
+    }
+    return { keys, prefix, shared: !!shared };
+  }
+};
+
+(function() {
+  const STORAGE_KEY = 'schedule-data-v2';
+  const DAY_WIDTH = 79;
+  const NAME_COL_WIDTH = 121;
+  const ROW_HEIGHT = 44;
+  const POLL_MS = 6000;
+
+  let technicians = [];
+  let jobTypes = [];
+  let assignments = {}; // key: techId|date|slot -> { typeId, notes }
+  let loaded = false;
+  let boardStart = mondayOf(new Date());
+  let numDays = 14;
+
+  const DEFAULT_JOB_TYPES = [
+    { id: 'maint', name: 'Maint / Repair', code: 'MAINT', color: '#C0E6F5', fixedPeriod: 'AM' },
+  ];
+  const NEW_DEFAULT_TYPES = [
+    { id: 'heliosop', name: 'Helios Operator', code: 'HL OP', color: '#FFC000', colorAM: '#FFC000', colorPM: '#44B3E1' },
+    { id: 'skidsteer', name: 'Helios Skid Steer', code: 'HL Skid', color: '#FFC000', colorAM: '#FFC000', colorPM: '#44B3E1' },
+    { id: 'heliocool', name: 'Helios Cool', code: 'HL Cool', color: '#FFC000', colorAM: '#FFC000', colorPM: '#44B3E1' },
+    { id: 'shop', name: 'Shop', code: 'SHOP', color: '#B5E6A2', fixedPeriod: 'AM' },
+    { id: 'lab', name: 'LAB', code: 'LAB', color: '#F2CEEF', fixedPeriod: 'AM' },
+    { id: 'off', name: 'OFF', code: 'OFF', color: '#C7CCD1', fullDay: true },
+    { id: 'offred', name: 'OFF', code: 'OFF', color: '#FFB3B0', fullDay: true },
+    { id: 'pto', name: 'PTO', code: 'PTO', color: '#F1A983', fullDay: true },
+  ];
+  const CONFIG_VERSION = 12;
+  const COLOR_CHOICES = ['#3B7A57','#2B6CB0','#B65C4D','#5A3E0B','#6B3A2E','#4A2B54','#25415C','#6B2438','#8A98A3','#FFC000','#44B3E1','#C0E6F5','#B5E6A2','#F2CEEF','#F1A983','#3A3F44','#FF7C80'];
+
+  const boardContainer = document.getElementById('ts-board-container');
+  const rangeLabel = document.getElementById('ts-range-label');
+  const legendEl = document.getElementById('ts-legend');
+  const daycountSelect = document.getElementById('ts-daycount-select');
+  const rootEl = document.getElementById('ts-root');
+
+  let appMode = 'user';
+  let adminPin = '310310';
+  const SEED_ADMIN_PIN = '310310';
+  let viewCode = '';
+  let viewUnlocked = false;
+  function isAdmin() { return appMode === 'admin'; }
+  function applyModeUI() { rootEl.classList.toggle('ts-mode-user', !isAdmin()); }
+  applyModeUI();
+
+  const lockScreenEl = document.getElementById('ts-lock-screen');
+  const appContentEl = document.getElementById('ts-app-content');
+  const lockInput = document.getElementById('ts-lock-input');
+  const lockError = document.getElementById('ts-lock-error');
+
+  function updateLockVisibility() {
+    const locked = !!viewCode && !viewUnlocked;
+    lockScreenEl.style.display = locked ? 'flex' : 'none';
+    appContentEl.style.display = locked ? 'none' : '';
+  }
+
+  function tryUnlock() {
+    if (lockInput.value.trim() === viewCode) {
+      viewUnlocked = true;
+      lockError.style.display = 'none';
+      updateLockVisibility();
+    } else {
+      lockError.style.display = '';
+      lockInput.focus();
+    }
+  }
+  document.getElementById('ts-lock-submit').addEventListener('click', tryUnlock);
+  lockInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryUnlock(); });
+
+  function mondayOf(d) { const x = new Date(d); const day = x.getDay(); x.setDate(x.getDate() + (day===0?-6:1-day)); x.setHours(0,0,0,0); return x; }
+  function toISO(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  function addDays(d,n) { const x = new Date(d); x.setDate(x.getDate()+n); return x; }
+  function uid() { return 't'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+  function escapeHtml(s) {
+    return String(s==null?'':s)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#39;');
+  }
+  function keyFor(techId, dateISO) { return techId+'|'+dateISO; }
+  function contrastText(hex) {
+    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    return (r*0.299 + g*0.587 + b*0.114) > 150 ? '#20262B' : '#FFFFFF';
+  }
+  function isModalOpen() { return !!document.querySelector('.ts-modal-backdrop'); }
+
+  function showConfirm(message, onConfirm) {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'ts-modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="ts-modal">
+        <h2>Are you sure?</h2>
+        <p class="ts-modal-sub">${escapeHtml(message)}</p>
+        <div class="ts-modal-actions">
+          <button class="ts-cancel-btn" id="ts-confirm-cancel">Cancel</button>
+          <button class="ts-del-modal-btn" id="ts-confirm-ok" style="flex:1;">Remove</button>
+        </div>
+      </div>`;
+    document.body.appendChild(backdrop);
+    const close = () => backdrop.remove();
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+    backdrop.querySelector('#ts-confirm-cancel').addEventListener('click', close);
+    backdrop.querySelector('#ts-confirm-ok').addEventListener('click', () => { close(); onConfirm(); });
+  }
+  const PERIOD_LABEL = { AM: 'AM', PM: 'PM', FULL: '' };
+
+  function migrateLegacyAssignments() {
+    const keys = Object.keys(assignments);
+    const isLegacy = keys.some(k => k.split('|').length === 3);
+    if (!isLegacy) return false;
+    const byDay = {};
+    keys.forEach(k => {
+      const parts = k.split('|');
+      if (parts.length !== 3) return;
+      const [techId, date, slot] = parts;
+      const dayKey = techId + '|' + date;
+      byDay[dayKey] = byDay[dayKey] || {};
+      byDay[dayKey][slot] = assignments[k];
+    });
+    const rebuilt = {};
+    Object.keys(byDay).forEach(dayKey => {
+      const { AM, PM } = byDay[dayKey];
+      if (AM && PM && AM.typeId === PM.typeId) {
+        rebuilt[dayKey] = { typeId: AM.typeId, period: 'FULL', notes: AM.notes || PM.notes || '' };
+      } else if (AM && !PM) {
+        rebuilt[dayKey] = { typeId: AM.typeId, period: 'AM', notes: AM.notes || '' };
+      } else if (PM && !AM) {
+        rebuilt[dayKey] = { typeId: PM.typeId, period: 'PM', notes: PM.notes || '' };
+      } else if (AM && PM) {
+        rebuilt[dayKey] = { typeId: AM.typeId, period: 'AM', notes: (AM.notes ? AM.notes + ' ' : '') + '(had a different PM entry — please recheck)' };
+      }
+    });
+    assignments = rebuilt;
+    return true;
+  }
+
+  function colorForAssignment(jt, period) {
+    if (period === 'AM' && jt.colorAM) return jt.colorAM;
+    if (period === 'PM' && jt.colorPM) return jt.colorPM;
+    return jt.color;
+  }
+
+  function renderDayBlock(techId, techName, dISO, assignment) {
+    if (!assignment) {
+      return '<div class="ts-slot ts-slot-empty" data-tech="'+techId+'" data-date="'+dISO+'" title="'+escapeHtml(techName+' — '+dISO+': unassigned')+'"><span class="ts-slot-empty-label">+</span></div>';
+    }
+    const jt = jobTypes.find(j => j.id === assignment.typeId);
+    if (!jt) {
+      return '<div class="ts-slot ts-slot-empty" data-tech="'+techId+'" data-date="'+dISO+'"><span class="ts-slot-empty-label">+</span></div>';
+    }
+    const bg = colorForAssignment(jt, assignment.period);
+    const suffix = (assignment.period && assignment.period !== 'FULL' && !jt.fixedPeriod) ? '-' + assignment.period : '';
+    const label = jt.code + suffix;
+    const tentativeClass = assignment.tentative ? ' ts-slot-tentative' : '';
+    const tentativeNote = assignment.tentative ? ' (tentative)' : '';
+    const tooltip = techName + ' — ' + dISO + ': ' + jt.name + (assignment.period !== 'FULL' ? ' (' + assignment.period + ')' : '') + tentativeNote + (assignment.notes ? ' — ' + assignment.notes : '');
+    return '<div class="ts-slot'+tentativeClass+'" data-tech="'+techId+'" data-date="'+dISO+'" style="background-color:'+bg+';color:'+contrastText(bg)+'" title="'+escapeHtml(tooltip)+'">' +
+      '<span class="ts-slot-name">'+escapeHtml(label)+'</span>' +
+      (assignment.notes ? '<span class="ts-slot-note">'+escapeHtml(assignment.notes)+'</span>' : '') +
+    '</div>';
+  }
+
+  async function loadData(isPoll) {
+    let configVersion = 0;
+    try {
+      const result = await window.storage.get(STORAGE_KEY, true);
+      const parsed = result ? JSON.parse(result.value) : null;
+      technicians = (parsed && parsed.technicians) || [];
+      jobTypes = (parsed && parsed.jobTypes) || DEFAULT_JOB_TYPES.slice();
+      assignments = (parsed && parsed.assignments) || {};
+      adminPin = (parsed && parsed.adminPin) || SEED_ADMIN_PIN;
+      viewCode = (parsed && parsed.viewCode) || '';
+      configVersion = (parsed && (parsed.configVersion || parsed.colorVersion)) || 0;
+    } catch (err) {
+      if (!isPoll) { technicians = []; jobTypes = DEFAULT_JOB_TYPES.slice(); assignments = {}; }
+    }
+    if (!isPoll) {
+      let addedNewType = false;
+      NEW_DEFAULT_TYPES.forEach(dt => {
+        const existing = jobTypes.find(jt => jt.id === dt.id);
+        if (!existing) {
+          jobTypes.push({ ...dt });
+          addedNewType = true;
+        } else if (dt.fullDay && !existing.fullDay) {
+          existing.fullDay = true;
+          addedNewType = true;
+        }
+      });
+      const migrated = migrateLegacyAssignments();
+
+      let configMigrated = false;
+      if (configVersion < CONFIG_VERSION) {
+        const heliosIdx = jobTypes.findIndex(jt => jt.name.toLowerCase() === 'helios run');
+        if (heliosIdx !== -1) {
+          const removedId = jobTypes[heliosIdx].id;
+          jobTypes.splice(heliosIdx, 1);
+          Object.keys(assignments).forEach(k => { if (assignments[k].typeId === removedId) delete assignments[k]; });
+        }
+        const applyTypeById = (id, patch) => {
+          const jt = jobTypes.find(j => j.id === id);
+          if (jt) Object.assign(jt, patch);
+        };
+        applyTypeById('maint', { name: 'Maint / Repair', code: 'MAINT', color: '#C0E6F5', fixedPeriod: 'AM' });
+        applyTypeById('shop', { name: 'Shop', code: 'SHOP', color: '#B5E6A2', fixedPeriod: 'AM' });
+        applyTypeById('off', { name: 'OFF', code: 'OFF', color: '#C7CCD1', fullDay: true });
+        applyTypeById('offred', { name: 'OFF', code: 'OFF', color: '#FFB3B0', fullDay: true });
+        applyTypeById('pto', { name: 'PTO', code: 'PTO', color: '#F1A983', fullDay: true });
+        applyTypeById('heliosop', { name: 'Helios Operator', code: 'HL OP', color: '#FFC000', colorAM: '#FFC000', colorPM: '#44B3E1' });
+        applyTypeById('skidsteer', { name: 'Helios Skid Steer', code: 'HL Skid', color: '#FFC000', colorAM: '#FFC000', colorPM: '#44B3E1' });
+        applyTypeById('heliocool', { name: 'Helios Cool', code: 'HL Cool', color: '#FFC000', colorAM: '#FFC000', colorPM: '#44B3E1' });
+
+        jobTypes.forEach(jt => {
+          if (jt.fixedPeriod) {
+            Object.keys(assignments).forEach(k => {
+              if (assignments[k].typeId === jt.id && assignments[k].period !== jt.fixedPeriod) {
+                assignments[k] = { ...assignments[k], period: jt.fixedPeriod };
+              }
+            });
+          }
+        });
+
+        if (configVersion < 11) {
+          adminPin = SEED_ADMIN_PIN;
+          viewCode = '';
+          viewUnlocked = true;
+        }
+
+        configMigrated = true;
+      }
+
+      if (addedNewType || migrated || configMigrated) await saveData();
+    }
+    loaded = true;
+    const addInputFocused = document.activeElement && document.activeElement.id === 'ts-add-row-input';
+    if (!isPoll || (!isModalOpen() && !addInputFocused)) render();
+    updateLockVisibility();
+  }
+
+  async function saveData() {
+    try {
+      const result = await window.storage.set(STORAGE_KEY, JSON.stringify({ technicians, jobTypes, assignments, configVersion: CONFIG_VERSION, adminPin, viewCode }), true);
+      if (!result) throw new Error('save failed');
+      return true;
+    } catch (err) {
+      alert("Couldn't save — check your connection and try again.");
+      return false;
+    }
+  }
+
+  function renderRangeLabel() {
+    const end = addDays(boardStart, numDays - 1);
+    const fmt = (d) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    rangeLabel.textContent = fmt(boardStart) + ' – ' + fmt(end) + ', ' + end.getFullYear();
+  }
+
+  function renderLegend() {
+    const dualTypes = jobTypes.filter(jt => jt.colorAM && jt.colorPM);
+    const singleTypes = jobTypes.filter(jt => !(jt.colorAM && jt.colorPM));
+
+    // Group dual-color (AM/PM) types that share the exact same color pair into one legend entry.
+    const groups = [];
+    dualTypes.forEach(jt => {
+      const key = jt.colorAM + '|' + jt.colorPM;
+      let group = groups.find(g => g.key === key);
+      if (!group) { group = { key, colorAM: jt.colorAM, colorPM: jt.colorPM, names: [] }; groups.push(group); }
+      group.names.push(jt.name);
+    });
+
+    function groupLabel(names) {
+      const words = names[0].split(' ');
+      const common = words.find(w => names.every(n => n.includes(w)));
+      return common || names.join(' / ');
+    }
+
+    let html = '<span class="ts-legend-group-label">Shift type:</span>';
+    groups.forEach(g => {
+      const label = groupLabel(g.names);
+      html += '<span class="ts-legend-chip"><span class="ts-legend-swatch" style="background:'+g.colorAM+'"></span>'+escapeHtml(label)+' AM</span>';
+      html += '<span class="ts-legend-chip"><span class="ts-legend-swatch" style="background:'+g.colorPM+'"></span>'+escapeHtml(label)+' PM</span>';
+    });
+    singleTypes.forEach(jt => {
+      html += '<span class="ts-legend-chip"><span class="ts-legend-swatch" style="background:'+jt.color+'"></span>'+escapeHtml(jt.name)+'</span>';
+    });
+    html += '<span class="ts-legend-chip"><span class="ts-legend-swatch ts-legend-swatch-tentative"></span>Tentative</span>';
+    html += '<span class="ts-legend-chip"><span class="ts-legend-swatch" style="background:var(--ts-empty);border:1px solid var(--ts-line)"></span>Unassigned</span>';
+    legendEl.innerHTML = html;
+  }
+
+  function render() {
+    if (!loaded) return;
+    renderRangeLabel();
+    renderLegend();
+
+    if (technicians.length === 0) {
+      boardContainer.innerHTML = '<div class="ts-empty-techs">No technicians yet.<br>Add your crew using the row below.</div>' +
+        '<div class="ts-add-row" style="height:44px">' +
+          '<div class="ts-add-row-cell" style="width:' + NAME_COL_WIDTH + 'px">' +
+            '<input type="text" class="ts-add-row-input" id="ts-add-row-input" placeholder="Add technician…">' +
+            '<button class="ts-add-row-btn" id="ts-add-row-btn">Add</button>' +
+          '</div>' +
+        '</div>';
+      const addInput = document.getElementById('ts-add-row-input');
+      const addBtn = document.getElementById('ts-add-row-btn');
+      addBtn.addEventListener('click', () => addTech(addInput.value));
+      addInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addTech(addInput.value); });
+      return;
+    }
+
+    const totalWidth = numDays * DAY_WIDTH;
+    let html = '<div class="ts-board" style="width:' + (NAME_COL_WIDTH + totalWidth) + 'px">';
+
+    html += '<div class="ts-header-row">';
+    html += '<div class="ts-corner" style="width:' + NAME_COL_WIDTH + 'px">Technician</div>';
+    for (let i = 0; i < numDays; i++) {
+      const d = addDays(boardStart, i);
+      const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+      const showMonth = d.getDate() === 1 || i === 0;
+      html += '<div class="ts-daycell-header' + (isWeekend?' ts-weekend':'') + '" style="width:' + DAY_WIDTH + 'px">' +
+        (showMonth ? '<div class="ts-month-mark">' + d.toLocaleDateString(undefined,{month:'short'}) + '</div>' : '') +
+        '<div class="ts-dow">' + d.toLocaleDateString(undefined,{weekday:'short'}) + '</div>' +
+        '<div class="ts-dnum">' + d.getDate() + '</div>' +
+      '</div>';
+    }
+    html += '</div>';
+
+    for (const tech of technicians) {
+      html += '<div class="ts-tech-row" data-row-tech="' + tech.id + '" style="height:' + ROW_HEIGHT + 'px">';
+      html += '<div class="ts-tech-name-cell" data-drag-handle="' + tech.id + '" style="width:' + NAME_COL_WIDTH + 'px"><span class="ts-name" data-tech-info="' + tech.id + '" title="Double-click for details">' + escapeHtml(tech.name) + '</span></div>';
+      for (let i = 0; i < numDays; i++) {
+        const d = addDays(boardStart, i);
+        const dISO = toISO(d);
+        const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+        html += '<div class="ts-daycell' + (isWeekend?' ts-weekend':'') + '" style="width:' + DAY_WIDTH + 'px;height:' + ROW_HEIGHT + 'px">';
+        html += renderDayBlock(tech.id, tech.name, dISO, assignments[keyFor(tech.id, dISO)]);
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+
+    html += '<div class="ts-add-row" style="height:44px">' +
+      '<div class="ts-add-row-cell" style="width:' + NAME_COL_WIDTH + 'px">' +
+        '<input type="text" class="ts-add-row-input" id="ts-add-row-input" placeholder="Add technician…">' +
+        '<button class="ts-add-row-btn" id="ts-add-row-btn">Add</button>' +
+      '</div>' +
+      '<div class="ts-add-row-filler" style="width:' + totalWidth + 'px"></div>' +
+    '</div>';
+
+    html += '</div>';
+    boardContainer.innerHTML = html;
+
+    boardContainer.querySelectorAll('.ts-slot').forEach(el =>
+      el.addEventListener('click', () => openAssignModal(el.getAttribute('data-tech'), el.getAttribute('data-date'))));
+    boardContainer.querySelectorAll('[data-tech-info]').forEach(el =>
+      el.addEventListener('dblclick', () => openTechInfoModal(el.getAttribute('data-tech-info'))));
+    boardContainer.querySelectorAll('[data-drag-handle]').forEach(el =>
+      el.addEventListener('mousedown', (e) => {
+        if (!e.shiftKey) return;
+        e.preventDefault();
+        startRowDrag(el.getAttribute('data-drag-handle'), e);
+      }));
+
+    const addInput = document.getElementById('ts-add-row-input');
+    const addBtn = document.getElementById('ts-add-row-btn');
+    if (addInput && addBtn) {
+      const doAdd = () => addTech(addInput.value);
+      addBtn.addEventListener('click', doAdd);
+      addInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doAdd(); });
+    }
+  }
+
+  async function addTech(rawName) {
+    if (!isAdmin()) return;
+    const name = (rawName || '').trim();
+    if (!name) return;
+    technicians.push({ id: uid(), name });
+    render();
+    const el = document.getElementById('ts-add-row-input');
+    if (el) el.focus();
+    await saveData();
+  }
+
+  let dragTechId = null;
+  let dragTargetId = null;
+  let dragInsertBefore = true;
+
+  function startRowDrag(techId, downEvent) {
+    if (!isAdmin()) return;
+    dragTechId = techId;
+    dragTargetId = null;
+    document.body.style.userSelect = 'none';
+    const row = boardContainer.querySelector('[data-row-tech="' + techId + '"]');
+    if (row) row.classList.add('ts-row-dragging');
+
+    function onMove(e) {
+      const rows = Array.from(boardContainer.querySelectorAll('.ts-tech-row'));
+      rows.forEach(r => r.classList.remove('ts-row-drop-before', 'ts-row-drop-after'));
+      let foundId = null;
+      for (const r of rows) {
+        const id = r.getAttribute('data-row-tech');
+        if (id === dragTechId) continue;
+        const rect = r.getBoundingClientRect();
+        if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
+          const before = e.clientY < (rect.top + rect.height / 2);
+          r.classList.add(before ? 'ts-row-drop-before' : 'ts-row-drop-after');
+          foundId = id;
+          dragInsertBefore = before;
+          break;
+        }
+      }
+      dragTargetId = foundId;
+    }
+
+    async function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.userSelect = '';
+      const draggedId = dragTechId;
+      const targetId = dragTargetId;
+      const before = dragInsertBefore;
+      dragTechId = null;
+      dragTargetId = null;
+      if (targetId && targetId !== draggedId) {
+        const snapshot = technicians.slice();
+        const fromIdx = technicians.findIndex(t => t.id === draggedId);
+        if (fromIdx !== -1) {
+          const [item] = technicians.splice(fromIdx, 1);
+          let toIdx = technicians.findIndex(t => t.id === targetId);
+          if (toIdx === -1) { technicians.push(item); }
+          else {
+            if (!before) toIdx += 1;
+            technicians.splice(toIdx, 0, item);
+          }
+        }
+        render();
+        const ok = await saveData();
+        if (!ok) { technicians = snapshot; render(); }
+      } else {
+        render();
+      }
+    }
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
+  document.addEventListener('keydown', (e) => { if (e.key === 'Shift') boardContainer.classList.add('ts-shift-active'); });
+  document.addEventListener('keyup', (e) => { if (e.key === 'Shift') boardContainer.classList.remove('ts-shift-active'); });
+
+  async function removeTech(id) {
+    if (!isAdmin()) return;
+    const tech = technicians.find(t => t.id === id);
+    const hasAssignments = Object.keys(assignments).some(k => k.startsWith(id + '|'));
+
+    async function doRemove() {
+      const idx = technicians.findIndex(t => t.id === id);
+      const removedTech = technicians.splice(idx, 1)[0];
+      const removedKeys = Object.keys(assignments).filter(k => k.startsWith(id + '|'));
+      const removedVals = {};
+      removedKeys.forEach(k => { removedVals[k] = assignments[k]; delete assignments[k]; });
+      render();
+      const ok = await saveData();
+      if (!ok) { technicians.splice(idx, 0, removedTech); Object.assign(assignments, removedVals); render(); }
+    }
+
+    if (hasAssignments) {
+      return new Promise((resolve) => {
+        showConfirm('Remove ' + (tech ? tech.name : 'this technician') + ' and their assignments from the schedule?', async () => {
+          await doRemove();
+          resolve(true);
+        });
+      });
+    }
+    await doRemove();
+    return true;
+  }
+
+  function openAccessModal() {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'ts-modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="ts-modal">
+        <h2>Access mode</h2>
+        <p class="ts-modal-sub">This device is currently: <strong>${isAdmin() ? 'Admin' : 'User (view-only)'}</strong></p>
+        <div class="ts-field">
+          <div class="ts-period-toggle" id="ts-access-toggle">
+            <button type="button" class="ts-period-btn${isAdmin() ? ' ts-period-selected' : ''}" data-mode="admin">Admin</button>
+            <button type="button" class="ts-period-btn${!isAdmin() ? ' ts-period-selected' : ''}" data-mode="user">User</button>
+          </div>
+          <div id="ts-access-pin-entry" style="display:none;margin-top:8px;">
+            <div class="ts-field-row">
+              <div class="ts-field" style="margin-bottom:0;">
+                <input type="password" id="ts-access-pin-input" placeholder="Enter admin PIN">
+              </div>
+              <button class="ts-save-btn" id="ts-access-pin-submit" style="flex:0 0 auto;">Unlock</button>
+            </div>
+            <div class="ts-error" id="ts-access-pin-error" style="display:none;">Incorrect PIN.</div>
+          </div>
+          ${isAdmin() ? `
+          <div style="margin-top:12px;">
+            <label style="display:block;font-size:13px;color:var(--ts-slate);margin-bottom:5px;">Admin PIN (required for anyone to become Admin)</label>
+            <div class="ts-field-row">
+              <div class="ts-field" style="margin-bottom:0;">
+                <input type="text" id="ts-access-pin-change" placeholder="Set or change PIN" maxlength="16">
+              </div>
+              <button class="ts-cancel-btn" id="ts-access-pin-change-btn" style="flex:0 0 auto;">Save PIN</button>
+            </div>
+          </div>
+          <div style="margin-top:12px;">
+            <label style="display:block;font-size:13px;color:var(--ts-slate);margin-bottom:5px;">
+              Viewer access code ${viewCode ? '(set — required for anyone to open this schedule)' : '(not set — anyone with the link can view)'}
+            </label>
+            <div class="ts-field-row">
+              <div class="ts-field" style="margin-bottom:0;">
+                <input type="text" id="ts-access-viewcode-change" placeholder="Set or change access code" maxlength="24">
+              </div>
+              <button class="ts-cancel-btn" id="ts-access-viewcode-change-btn" style="flex:0 0 auto;">Save</button>
+            </div>
+          </div>` : ''}
+        </div>
+        <div class="ts-modal-actions">
+          <button class="ts-cancel-btn" id="ts-access-close">Done</button>
+        </div>
+      </div>`;
+    document.body.appendChild(backdrop);
+    const close = () => backdrop.remove();
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+    backdrop.querySelector('#ts-access-close').addEventListener('click', close);
+
+    function reopen() { close(); openAccessModal(); }
+
+    const toggle = backdrop.querySelector('#ts-access-toggle');
+    const pinEntry = backdrop.querySelector('#ts-access-pin-entry');
+    toggle.querySelector('[data-mode="user"]').addEventListener('click', () => {
+      appMode = 'user';
+      applyModeUI();
+      render();
+      reopen();
+    });
+    toggle.querySelector('[data-mode="admin"]').addEventListener('click', () => {
+      if (isAdmin()) return;
+      pinEntry.style.display = '';
+      backdrop.querySelector('#ts-access-pin-input').focus();
+    });
+
+    const pinSubmit = backdrop.querySelector('#ts-access-pin-submit');
+    const pinInput = backdrop.querySelector('#ts-access-pin-input');
+    const pinError = backdrop.querySelector('#ts-access-pin-error');
+    const trySubmit = () => {
+      if (pinInput.value.trim() === adminPin) {
+        appMode = 'admin';
+        applyModeUI();
+        render();
+        reopen();
+      } else {
+        pinError.style.display = '';
+        pinInput.focus();
+      }
+    };
+    pinSubmit.addEventListener('click', trySubmit);
+    pinInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') trySubmit(); });
+
+    const pinChangeBtn = backdrop.querySelector('#ts-access-pin-change-btn');
+    if (pinChangeBtn) {
+      pinChangeBtn.addEventListener('click', async () => {
+        if (!isAdmin()) return;
+        const newPin = backdrop.querySelector('#ts-access-pin-change').value.trim();
+        if (!newPin) return;
+        const prevPin = adminPin;
+        adminPin = newPin;
+        const ok = await saveData();
+        if (!ok) { adminPin = prevPin; }
+        reopen();
+      });
+    }
+
+    const viewCodeChangeBtn = backdrop.querySelector('#ts-access-viewcode-change-btn');
+    if (viewCodeChangeBtn) {
+      viewCodeChangeBtn.addEventListener('click', async () => {
+        if (!isAdmin()) return;
+        const newCode = backdrop.querySelector('#ts-access-viewcode-change').value.trim();
+        const prevCode = viewCode;
+        viewCode = newCode;
+        viewUnlocked = true;
+        const ok = await saveData();
+        if (!ok) { viewCode = prevCode; }
+        updateLockVisibility();
+        reopen();
+      });
+    }
+  }
+
+  function openTechInfoModal(techId) {
+    const tech = technicians.find(t => t.id === techId);
+    if (!tech) return;
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'ts-modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="ts-modal">
+        <h2>Technician details</h2>
+        <p class="ts-modal-sub">Info shown only in this panel — not on the calendar.</p>
+        <div class="ts-field">
+          <label>Access mode (this device)</label>
+          <div class="ts-period-toggle" id="ts-mode-toggle">
+            <button type="button" class="ts-period-btn${isAdmin() ? ' ts-period-selected' : ''}" data-mode="admin">Admin</button>
+            <button type="button" class="ts-period-btn${!isAdmin() ? ' ts-period-selected' : ''}" data-mode="user">User</button>
+          </div>
+          <div id="ts-pin-entry" style="display:none;margin-top:8px;">
+            <div class="ts-field-row">
+              <div class="ts-field" style="margin-bottom:0;">
+                <input type="password" id="ts-pin-input" placeholder="Enter admin PIN">
+              </div>
+              <button class="ts-save-btn" id="ts-pin-submit" style="flex:0 0 auto;">Unlock</button>
+            </div>
+            <div class="ts-error" id="ts-pin-error" style="display:none;">Incorrect PIN.</div>
+          </div>
+          ${isAdmin() ? `
+          <div style="margin-top:12px;">
+            <label style="display:block;font-size:13px;color:var(--ts-slate);margin-bottom:5px;">
+              Admin PIN (required for anyone to become Admin)
+            </label>
+            <div class="ts-field-row">
+              <div class="ts-field" style="margin-bottom:0;">
+                <input type="text" id="ts-pin-change" placeholder="Set or change PIN" maxlength="16">
+              </div>
+              <button class="ts-cancel-btn" id="ts-pin-change-btn" style="flex:0 0 auto;">Save PIN</button>
+            </div>
+          </div>
+          <div style="margin-top:12px;">
+            <label style="display:block;font-size:13px;color:var(--ts-slate);margin-bottom:5px;">
+              Viewer access code ${viewCode ? '(set — required for anyone to open this schedule)' : '(not set — anyone with the link can view)'}
+            </label>
+            <div class="ts-field-row">
+              <div class="ts-field" style="margin-bottom:0;">
+                <input type="text" id="ts-viewcode-change" placeholder="Set or change access code" maxlength="24">
+              </div>
+              <button class="ts-cancel-btn" id="ts-viewcode-change-btn" style="flex:0 0 auto;">Save</button>
+            </div>
+          </div>` : ''}
+        </div>
+        <div class="ts-field">
+          <label>Name</label>
+          <input type="text" id="ts-info-name" value="${escapeHtml(tech.name)}" ${isAdmin() ? '' : 'disabled'}>
+        </div>
+        <div class="ts-field">
+          <label>Phone number</label>
+          <input type="tel" id="ts-info-phone" placeholder="e.g. (555) 123-4567" value="${escapeHtml(tech.phone || '')}" ${isAdmin() ? '' : 'disabled'}>
+        </div>
+        <div class="ts-field">
+          <label>Technician level</label>
+          <input type="text" id="ts-info-level" placeholder="e.g. Level 2, Senior, Trainee" value="${escapeHtml(tech.level || '')}" ${isAdmin() ? '' : 'disabled'}>
+        </div>
+        <div class="ts-field">
+          <label>Notes</label>
+          <textarea id="ts-info-notes" placeholder="Certifications, equipment, anything worth remembering" ${isAdmin() ? '' : 'disabled'}>${escapeHtml(tech.notes || '')}</textarea>
+        </div>
+        <div class="ts-modal-actions">
+          ${isAdmin() ? '<button class="ts-del-modal-btn" id="ts-info-delete">Delete</button>' : ''}
+          <button class="ts-cancel-btn" id="ts-info-cancel">Cancel</button>
+          <button class="ts-save-btn" id="ts-info-save" ${isAdmin() ? '' : 'style="display:none;"'}>Save</button>
+        </div>
+      </div>`;
+    document.body.appendChild(backdrop);
+    const close = () => backdrop.remove();
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+    backdrop.querySelector('#ts-info-cancel').addEventListener('click', close);
+
+    const deleteBtn = backdrop.querySelector('#ts-info-delete');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', async () => {
+        await removeTech(tech.id);
+        close();
+      });
+    }
+
+    const modeToggle = backdrop.querySelector('#ts-mode-toggle');
+    const pinEntry = backdrop.querySelector('#ts-pin-entry');
+    const pinError = backdrop.querySelector('#ts-pin-error');
+    const fieldIds = ['ts-info-name', 'ts-info-phone', 'ts-info-level', 'ts-info-notes'];
+
+    function reopen() { close(); openTechInfoModal(techId); }
+
+    modeToggle.querySelector('[data-mode="user"]').addEventListener('click', () => {
+      appMode = 'user';
+      applyModeUI();
+      render();
+      reopen();
+    });
+    modeToggle.querySelector('[data-mode="admin"]').addEventListener('click', () => {
+      if (isAdmin()) return;
+      pinEntry.style.display = '';
+      backdrop.querySelector('#ts-pin-input').focus();
+    });
+
+    const pinSubmit = backdrop.querySelector('#ts-pin-submit');
+    if (pinSubmit) {
+      const trySubmit = () => {
+        const entered = backdrop.querySelector('#ts-pin-input').value.trim();
+        if (entered === adminPin) {
+          appMode = 'admin';
+          applyModeUI();
+          render();
+          reopen();
+        } else {
+          pinError.style.display = '';
+          backdrop.querySelector('#ts-pin-input').focus();
+        }
+      };
+      pinSubmit.addEventListener('click', trySubmit);
+      backdrop.querySelector('#ts-pin-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') trySubmit(); });
+    }
+
+    const pinChangeBtn = backdrop.querySelector('#ts-pin-change-btn');
+    if (pinChangeBtn) {
+      pinChangeBtn.addEventListener('click', async () => {
+        if (!isAdmin()) return;
+        const newPin = backdrop.querySelector('#ts-pin-change').value.trim();
+        if (!newPin) return;
+        const prevPin = adminPin;
+        adminPin = newPin;
+        const ok = await saveData();
+        if (!ok) { adminPin = prevPin; }
+        reopen();
+      });
+    }
+
+    const viewCodeChangeBtn = backdrop.querySelector('#ts-viewcode-change-btn');
+    if (viewCodeChangeBtn) {
+      viewCodeChangeBtn.addEventListener('click', async () => {
+        if (!isAdmin()) return;
+        const newCode = backdrop.querySelector('#ts-viewcode-change').value.trim();
+        const prevCode = viewCode;
+        viewCode = newCode;
+        viewUnlocked = true;
+        const ok = await saveData();
+        if (!ok) { viewCode = prevCode; }
+        updateLockVisibility();
+        reopen();
+      });
+    }
+
+    backdrop.querySelector('#ts-info-save').addEventListener('click', async () => {
+      if (!isAdmin()) return;
+      const name = backdrop.querySelector('#ts-info-name').value.trim();
+      if (!name) { backdrop.querySelector('#ts-info-name').focus(); return; }
+      const phone = backdrop.querySelector('#ts-info-phone').value.trim();
+      const level = backdrop.querySelector('#ts-info-level').value.trim();
+      const notes = backdrop.querySelector('#ts-info-notes').value.trim();
+      const snapshot = { ...tech };
+      Object.assign(tech, { name, phone, level, notes });
+      render();
+      close();
+      const ok = await saveData();
+      if (!ok) { Object.assign(tech, snapshot); render(); }
+    });
+  }
+
+  function openAssignModal(techId, dateISO) {
+    if (!isAdmin()) return;
+    const tech = technicians.find(t => t.id === techId);
+    const d = new Date(dateISO + 'T00:00:00');
+    const dLabel = d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+    const key = keyFor(techId, dateISO);
+    const current = assignments[key];
+    let selectedTypeId = current ? current.typeId : null;
+    let selectedPeriod = current ? current.period : 'AM';
+    const currentType = current ? jobTypes.find(j => j.id === current.typeId) : null;
+    const initiallyLocked = !!(currentType && (currentType.fullDay || currentType.fixedPeriod));
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'ts-modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="ts-modal">
+        <h2>${escapeHtml(tech ? tech.name : '')}</h2>
+        <p class="ts-modal-sub">${dLabel}</p>
+        <div class="ts-jobtype-grid" id="ts-assign-types">
+          ${jobTypes.map(jt => `
+            <div class="ts-jobtype-option${jt.id === selectedTypeId ? ' ts-jobtype-selected' : ''}" data-pick="${jt.id}" data-fullday="${jt.fullDay ? '1' : ''}" data-fixedperiod="${jt.fixedPeriod || ''}">
+              <span class="ts-jobtype-swatch" style="background:${jt.color}"></span>
+              ${escapeHtml(jt.name)}
+            </div>`).join('')}
+        </div>
+        <div class="ts-field" id="ts-period-field">
+          <label>When</label>
+          <div class="ts-period-toggle${initiallyLocked ? ' ts-period-locked' : ''}" id="ts-period-toggle">
+            <button type="button" class="ts-period-btn${selectedPeriod==='AM'?' ts-period-selected':''}" data-period="AM">AM</button>
+            <button type="button" class="ts-period-btn${selectedPeriod==='PM'?' ts-period-selected':''}" data-period="PM">PM</button>
+            <button type="button" class="ts-period-btn${selectedPeriod==='FULL'?' ts-period-selected':''}" data-period="FULL">Full day</button>
+          </div>
+        </div>
+        <div class="ts-field">
+          <label>Notes (optional)</label>
+          <textarea id="ts-assign-notes" placeholder="e.g. job site, equipment, contact">${current ? escapeHtml(current.notes || '') : ''}</textarea>
+        </div>
+        <label class="ts-tentative-check">
+          <input type="checkbox" id="ts-assign-tentative" ${current && current.tentative ? 'checked' : ''}>
+          Tentative — shift not yet confirmed
+        </label>
+        <div class="ts-modal-actions">
+          ${current ? '<button class="ts-del-modal-btn" id="ts-assign-clear">Clear</button>' : ''}
+          <button class="ts-cancel-btn" id="ts-assign-cancel">Cancel</button>
+          <button class="ts-save-btn" id="ts-assign-save">Save</button>
+        </div>
+      </div>`;
+    document.body.appendChild(backdrop);
+    const close = () => backdrop.remove();
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+    backdrop.querySelector('#ts-assign-cancel').addEventListener('click', close);
+
+    const periodToggle = backdrop.querySelector('#ts-period-toggle');
+    function highlightPeriod(period) {
+      periodToggle.querySelectorAll('.ts-period-btn').forEach(b => b.classList.toggle('ts-period-selected', b.getAttribute('data-period') === period));
+    }
+    periodToggle.querySelectorAll('[data-period]').forEach(btn => btn.addEventListener('click', () => {
+      if (periodToggle.classList.contains('ts-period-locked')) return;
+      selectedPeriod = btn.getAttribute('data-period');
+      highlightPeriod(selectedPeriod);
+    }));
+
+    const typeGrid = backdrop.querySelector('#ts-assign-types');
+    typeGrid.querySelectorAll('[data-pick]').forEach(el => el.addEventListener('click', () => {
+      selectedTypeId = el.getAttribute('data-pick');
+      const isFullDay = el.getAttribute('data-fullday') === '1';
+      const fixedPeriod = el.getAttribute('data-fixedperiod') || '';
+      typeGrid.querySelectorAll('.ts-jobtype-option').forEach(o => o.classList.remove('ts-jobtype-selected'));
+      el.classList.add('ts-jobtype-selected');
+      if (isFullDay) {
+        selectedPeriod = 'FULL';
+        periodToggle.classList.add('ts-period-locked');
+        highlightPeriod('FULL');
+      } else if (fixedPeriod) {
+        selectedPeriod = fixedPeriod;
+        periodToggle.classList.add('ts-period-locked');
+        highlightPeriod(fixedPeriod);
+      } else {
+        periodToggle.classList.remove('ts-period-locked');
+        if (selectedPeriod === 'FULL') {
+          selectedPeriod = 'AM';
+        }
+        highlightPeriod(selectedPeriod);
+      }
+    }));
+
+    async function applyChange(mutate) {
+      const snapshot = JSON.parse(JSON.stringify(assignments));
+      mutate();
+      render();
+      close();
+      const ok = await saveData();
+      if (!ok) { assignments = snapshot; render(); }
+    }
+
+    if (current) {
+      backdrop.querySelector('#ts-assign-clear').addEventListener('click', () => applyChange(() => {
+        delete assignments[key];
+      }));
+    }
+
+    backdrop.querySelector('#ts-assign-save').addEventListener('click', () => {
+      if (!selectedTypeId) { close(); return; }
+      const notes = backdrop.querySelector('#ts-assign-notes').value.trim();
+      const tentative = backdrop.querySelector('#ts-assign-tentative').checked;
+      applyChange(() => {
+        assignments[key] = { typeId: selectedTypeId, period: selectedPeriod, notes, tentative };
+      });
+    });
+  }
+
+  function openManageTypes() {
+    if (!isAdmin()) return;
+    const backdrop = document.createElement('div');
+    backdrop.className = 'ts-modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="ts-modal">
+        <h2>Job types</h2>
+        <p class="ts-modal-sub">These are the colors technicians see on the grid.</p>
+        <div id="ts-type-list"></div>
+        <div class="ts-field" style="margin-top:14px;">
+          <label>Name</label>
+          <input type="text" id="ts-new-type-name" placeholder="e.g. Standby">
+        </div>
+        <div class="ts-field-row">
+          <div class="ts-field">
+            <label>Short code (grid label)</label>
+            <input type="text" id="ts-new-type-code" placeholder="e.g. SB" maxlength="4">
+          </div>
+        </div>
+        <div class="ts-field">
+          <label>Color</label>
+          <div class="ts-color-swatches" id="ts-new-type-colors"></div>
+        </div>
+        <div class="ts-error" id="ts-type-error" style="display:none;"></div>
+        <div class="ts-modal-actions">
+          <button class="ts-cancel-btn" id="ts-type-close">Done</button>
+          <button class="ts-save-btn" id="ts-add-type-btn">Add type</button>
+        </div>
+      </div>`;
+    document.body.appendChild(backdrop);
+
+    let pickedColor = COLOR_CHOICES[0];
+    const colorWrap = backdrop.querySelector('#ts-new-type-colors');
+    colorWrap.innerHTML = COLOR_CHOICES.map((c,i) => '<div class="ts-color-dot'+(i===0?' ts-color-selected':'')+'" data-color="'+c+'" style="background:'+c+'"></div>').join('');
+    colorWrap.querySelectorAll('.ts-color-dot').forEach(dot => dot.addEventListener('click', () => {
+      pickedColor = dot.getAttribute('data-color');
+      colorWrap.querySelectorAll('.ts-color-dot').forEach(d => d.classList.remove('ts-color-selected'));
+      dot.classList.add('ts-color-selected');
+    }));
+
+    function renderList() {
+      const listEl = backdrop.querySelector('#ts-type-list');
+      listEl.innerHTML = jobTypes.map(jt =>
+        '<div class="ts-listitem"><span class="ts-listitem-left"><span class="ts-legend-swatch" style="background:'+jt.color+'"></span>'+escapeHtml(jt.name)+' ('+escapeHtml(jt.code)+')</span>'+
+        '<button class="ts-del-link" data-remove-type="'+jt.id+'">Remove</button></div>'
+      ).join('');
+      listEl.querySelectorAll('[data-remove-type]').forEach(btn => btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-remove-type');
+        const inUse = Object.values(assignments).some(a => a.typeId === id);
+
+        async function doRemoveType() {
+          const idx = jobTypes.findIndex(j => j.id === id);
+          const removedType = jobTypes.splice(idx, 1)[0];
+          const removedKeys = Object.keys(assignments).filter(k => assignments[k].typeId === id);
+          const removedVals = {};
+          removedKeys.forEach(k => { removedVals[k] = assignments[k]; delete assignments[k]; });
+          renderList(); render();
+          const ok = await saveData();
+          if (!ok) { jobTypes.splice(idx, 0, removedType); Object.assign(assignments, removedVals); renderList(); render(); }
+        }
+
+        if (inUse) {
+          showConfirm('This job type is used in the schedule. Remove it and clear those assignments?', doRemoveType);
+        } else {
+          doRemoveType();
+        }
+      }));
+    }
+    renderList();
+
+    backdrop.querySelector('#ts-add-type-btn').addEventListener('click', async () => {
+      const name = backdrop.querySelector('#ts-new-type-name').value.trim();
+      const code = backdrop.querySelector('#ts-new-type-code').value.trim();
+      const errEl = backdrop.querySelector('#ts-type-error');
+      if (!name || !code) {
+        errEl.textContent = 'Name and short code are required.';
+        errEl.style.display = 'block';
+        return;
+      }
+      jobTypes.push({ id: uid(), name, code, color: pickedColor });
+      backdrop.querySelector('#ts-new-type-name').value = '';
+      backdrop.querySelector('#ts-new-type-code').value = '';
+      errEl.style.display = 'none';
+      renderList(); render();
+      await saveData();
+    });
+
+    const close = () => backdrop.remove();
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+    backdrop.querySelector('#ts-type-close').addEventListener('click', close);
+  }
+
+  document.getElementById('ts-prev').addEventListener('click', () => { boardStart = addDays(boardStart, -7); render(); });
+  document.getElementById('ts-next').addEventListener('click', () => { boardStart = addDays(boardStart, 7); render(); });
+  document.getElementById('ts-today').addEventListener('click', () => { boardStart = mondayOf(new Date()); render(); });
+  daycountSelect.addEventListener('change', () => { numDays = parseInt(daycountSelect.value, 10); render(); });
+  document.getElementById('ts-manage-types').addEventListener('click', openManageTypes);
+  document.getElementById('ts-access-btn').addEventListener('click', openAccessModal);
+
+  loadData(false);
+  // Polling for other viewers' changes is unnecessary for a single local user, so it's disabled here.
+  // setInterval(() => loadData(true), POLL_MS);
+})();
+</script>
